@@ -39,3 +39,5 @@ train_df <- map_df(train_files, function(file) {
 ) %>% inner_join(train_response, by = c("WAFER_ID", "STAGE"))
 
 rm(list = ls()[!(ls() %in% c('train_response', 'train_df'))])
+
+# write_rds(train_df, "phm_dashboard/data/train_df.rds")
