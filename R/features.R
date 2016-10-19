@@ -1,5 +1,15 @@
 
 
+
+# wafers in multiple stages -----------------------------------------------
+
+multiple_stage_flag <- train_response %>% 
+  group_by(WAFER_ID) %>% 
+  count() %>% 
+  mutate(MULTIPLE_STAGE_FLAG = if_else(n > 1, 1, 0)) %>%
+  select(-n)
+
+
 # rework flag -------------------------------------------------------------
 
 # give each stage and chamber an ordered ID
@@ -125,3 +135,5 @@ glimpse(agrgts_2)
 features <- train_response %>%
   inner_join(combined_durations, by = "WAFER_ID") %>%
   inner_join(agrgts_2, by = c("WAFER_ID", "STAGE"))
+
+glimpse(features)
