@@ -236,3 +236,11 @@ ggplot(
   geom_point() +
   facet_wrap(~ SEQUENCE)
 
+
+
+# rework ------------------------------------------------------------------
+
+ggplot(train_df %>% filter(WAFER_ID == -4019511766),
+       aes(x = TIMESTAMP, y = CHAMBER, color = STAGE)) +
+  geom_point() +
+  geom_vline(xintercept = 483966563)

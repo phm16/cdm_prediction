@@ -1,8 +1,8 @@
 # library(tidyverse)
 
-train_response <- read_csv("data/CMP-training-removalrate.csv")
+response <- read_csv("data/CMP-training-removalrate.csv")
 
-train_files <- list.files("data/training")
+files <- list.files("data/training")
 
 col_types_list <- 
   list(
@@ -33,9 +33,9 @@ col_types_list <-
     EDGE_AIR_BAG_PRESSURE = col_double()
   )
 
-train_df <- map_df(train_files, function(file) {
+base_df <- map_df(files, function(file) {
   read_csv(paste0("data/training/", file), col_types = col_types_list)
   }
-) %>% inner_join(train_response, by = c("WAFER_ID", "STAGE"))
+) %>% inner_join(response, by = c("WAFER_ID", "STAGE"))
 
-rm(list = ls()[!(ls() %in% c('train_response', 'train_df'))])
+rm(list = ls()[!(ls() %in% c('response', 'base_df'))])

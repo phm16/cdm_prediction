@@ -1,14 +1,55 @@
 
 
-
 # wafers in multiple stages -----------------------------------------------
 
-multiple_stage_flag <- train_response %>% 
+# if wafer count is greater than 1, then the wafer is processed in multiple chambers
+multiple_stage_flag <- response %>% 
   group_by(WAFER_ID) %>% 
   count() %>% 
-  mutate(MULTIPLE_STAGE_FLAG = if_else(n > 1, 1, 0)) %>%
+  mutate(MULTIPLE_STAGE_FLAG = if_else(n > 1, 1L, 0L)) %>%
   select(-n)
 
+glimpse(multiple_stage_flag)
+
+# component replacement flags ---------------------------------------------
+
+# flag when there is a large drop in usage (signaling a replacement)
+replace_flags <- base_df %>% select(WAFER_ID, STAGE, TIMESTAMP, starts_with("USAGE")) %>%
+  gather(VAR, VAL, -WAFER_ID, -STAGE, -TIMESTAMP) %>%
+  group_by(VAR) %>%
+  mutate(
+    LAG_VAL = lag(VAL, 1, default = 0L)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    VAR = paste0(str_replace(VAR, "USAGE_OF_", ""), "_REPLACED_FLAG")
+  ) %>%
+  mutate(
+    REPLACE_FLAG = case_when(
+      .$VAR == "BACKING_FILM_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 1000)) ~ 1L,
+      .$VAR == "DRESSER_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 100)) ~ 1L,
+      .$VAR == "DRESSER_TABLE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 1000)) ~ 1L,
+      .$VAR == "MEMBRANE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 20)) ~ 1L,
+      .$VAR == "POLISHING_TABLE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 50)) ~ 1L,
+      .$VAR == "PRESSURIZED_SHEET_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 500)) ~ 1L,
+      TRUE ~ 0L
+    )) %>%
+  ungroup()
+
+# spread the replacement flags to columns
+replace_flags_spread <- replace_flags %>%
+  filter(REPLACE_FLAG == 1) %>%
+  select(
+    WAFER_ID,
+    STAGE,
+    TIMESTAMP,
+    VAR,
+    REPLACE_FLAG
+  ) %>%
+  distinct() %>%
+  spread(VAR, REPLACE_FLAG, fill = 0L)
+
+glimpse(replace_flags_spread)
 
 # rework flag -------------------------------------------------------------
 
@@ -17,18 +58,11 @@ sequence_id <- tibble(
   STAGE_CHAMBER = c('A_1', 'A_2', 'A_3', 'A_4', 'A_5', 'A_6', 'B_4', 'B_5', 'B_6')
   ) %>% mutate(SEQUENCE_ID = row_number())
 
-# example of rework
-ggplot(train_df %>% filter(WAFER_ID == -4019511766),
-       aes(x = TIMESTAMP, y = CHAMBER, color = STAGE)) +
-  geom_point() +
-  geom_vline(xintercept = 483966563)
-
-# get timestamp when sequence goes down
-rework_timestamps <- train_df %>% select(WAFER_ID, TIMESTAMP, STAGE, CHAMBER) %>%
+# get timestamp when a wafer goes back to a previous chamber
+rework_timestamps <- base_df %>% select(WAFER_ID, TIMESTAMP, STAGE, CHAMBER) %>%
   unite(STAGE_CHAMBER, STAGE, CHAMBER) %>%
   inner_join(sequence_id, by = "STAGE_CHAMBER") %>%
   group_by(WAFER_ID) %>%
-  #filter(WAFER_ID == -4019511766) %>%
   arrange(TIMESTAMP) %>%
   mutate(REWORK_FLAG = if_else(SEQUENCE_ID < lag(SEQUENCE_ID, 1), 1, 0)) %>%
   filter(REWORK_FLAG == 1) %>%
@@ -39,8 +73,8 @@ rework_timestamps <- train_df %>% select(WAFER_ID, TIMESTAMP, STAGE, CHAMBER) %>
 # overall_duration --------------------------------------------------------
 
 # compute the overall time duration from start to finish
-processing_durations <- train_df %>% select(WAFER_ID, TIMESTAMP) %>%
-
+processing_durations <- base_df %>% 
+  select(WAFER_ID, TIMESTAMP) %>%
   group_by(WAFER_ID) %>%
   mutate(MIN_TIMESTAMP = min(TIMESTAMP),
          MAX_TIMESTAMP = max(TIMESTAMP)
@@ -56,8 +90,7 @@ glimpse(processing_durations)
 # stage and chamber durations ---------------------------------------------
 
 # compute the duration within each chamber and account for rework
-stage_chamber_durations <- train_df %>% 
-  #filter(WAFER_ID == -4019511766) %>% 
+stage_chamber_durations <- base_df %>% 
   select(WAFER_ID, TIMESTAMP, STAGE, CHAMBER) %>% 
   left_join(rework_timestamps, by = "WAFER_ID") %>%
   replace_na(list(REWORK_TIMESTAMP = 9999999999)) %>%
@@ -70,7 +103,6 @@ stage_chamber_durations <- train_df %>%
   group_by(WAFER_ID, STAGE, CHAMBER) %>%
   summarize(DURATION = sum(STEP_DURATION, na.rm = TRUE)) %>%
   unite(STAGE_CHAMBER, STAGE, CHAMBER) %>%
-  #unite(STAGE_CHAMBER_PASS, STAGE_CHAMBER, REWORK_PASS) %>%
   spread(STAGE_CHAMBER, DURATION, fill = 0) %>%
   mutate(SEQUENCE = paste0(
     "S",
@@ -93,7 +125,6 @@ stage_chamber_durations <- train_df %>%
 
 glimpse(stage_chamber_durations)
 
-
 # combined durations ------------------------------------------------------
 
 # combine the overall processing duration and chamber duration
@@ -106,8 +137,18 @@ glimpse(combined_durations)
 # simple aggregates -------------------------------------------------------
 
 # group by STAGE and CHAMBER
-agrgts <- train_df %>% 
-  select(-MACHINE_ID, -MACHINE_DATA, -AVG_REMOVAL_RATE) %>% 
+agrgts <- base_df %>%
+  select(-MACHINE_ID,-MACHINE_DATA,-AVG_REMOVAL_RATE) %>%
+  left_join(replace_flags_spread, by = c("WAFER_ID", "STAGE", "TIMESTAMP")) %>%
+  replace_na(
+    list(
+      "BACKING_FILM_REPLACED_FLAG" = 0L,
+      "DRESSER_REPLACED_FLAG" = 0L,
+      "MEMBRANE_REPLACED_FLAG" = 0L,
+      "POLISHING_TABLE_REPLACED_FLAG" = 0L,
+      "PRESSURIZED_SHEET_REPLACED_FLAG" = 0L
+    )
+  ) %>%
   group_by(WAFER_ID, STAGE, CHAMBER) %>% 
   summarize_each(funs(min(., na.rm = TRUE), mean(., na.rm = TRUE), max(., na.rm = TRUE))) %>% 
   ungroup() %>%
@@ -118,10 +159,20 @@ agrgts <- train_df %>%
 glimpse(agrgts)
 
 # group by STAGE
-agrgts_2 <- train_df %>% 
-  select(-MACHINE_ID, -MACHINE_DATA, -AVG_REMOVAL_RATE) %>% 
+agrgts_2 <- base_df %>% 
+  select(-MACHINE_ID, -MACHINE_DATA, -AVG_REMOVAL_RATE) %>%
+  left_join(replace_flags_spread, by = c("WAFER_ID", "STAGE", "TIMESTAMP")) %>%
+  replace_na(
+    list(
+      "BACKING_FILM_REPLACED_FLAG" = 0L,
+      "DRESSER_REPLACED_FLAG" = 0L,
+      "MEMBRANE_REPLACED_FLAG" = 0L,
+      "POLISHING_TABLE_REPLACED_FLAG" = 0L,
+      "PRESSURIZED_SHEET_REPLACED_FLAG" = 0L
+    )
+  ) %>%
   group_by(WAFER_ID, STAGE) %>% 
-  summarize_each(funs(min(., na.rm = TRUE), mean(., na.rm = TRUE), max(., na.rm = TRUE))) %>% 
+  summarize_each(funs(min(., na.rm = TRUE), mean(., na.rm = TRUE), max(., na.rm = TRUE), sum(., na.rm = TRUE))) %>% 
   ungroup() %>%
   gather(var, val, -WAFER_ID, -STAGE) %>%
   spread(var, val, fill = 0) %>%
@@ -129,11 +180,12 @@ agrgts_2 <- train_df %>%
 
 glimpse(agrgts_2)
 
-
 # all features ------------------------------------------------------------
 
-features <- train_response %>%
+features <- response %>%
+  inner_join(multiple_stage_flag, by = "WAFER_ID") %>%
   inner_join(combined_durations, by = "WAFER_ID") %>%
+  #inner_join(agrgts, by = c("WAFER_ID", "STAGE") %>% # leave out for now
   inner_join(agrgts_2, by = c("WAFER_ID", "STAGE"))
 
 glimpse(features)

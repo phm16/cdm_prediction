@@ -1,0 +1,6 @@
+These scripts are required to generate the training and test sets:
+
+_setup.R:  loads packages
+read.R:  reads training data csv files
+features.R:  generates features for modeling
+data_split.R:  splits 70% of the oldest wafer/stage to training; 30% of the newest wafer/stage to test
