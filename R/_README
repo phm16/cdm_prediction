@@ -4,3 +4,10 @@ _setup.R:  loads packages
 read.R:  reads training data csv files
 features.R:  generates features for modeling
 data_split.R:  splits 70% of the oldest wafer/stage to training; 30% of the newest wafer/stage to test
+
+The data folder should be structured like this:
+
+data/CMP_training_removalrate.csv
+data/training/CMP_training-000.csv
+... all other files
+data/training/CMP_training-184.csv
