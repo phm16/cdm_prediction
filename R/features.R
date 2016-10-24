@@ -150,7 +150,7 @@ agrgts <- base_df %>%
     )
   ) %>%
   group_by(WAFER_ID, STAGE, CHAMBER) %>% 
-  summarize_each(funs(min(., na.rm = TRUE), mean(., na.rm = TRUE), max(., na.rm = TRUE))) %>% 
+  summarize_each(funs(min(., na.rm = TRUE), mean(., na.rm = TRUE), max(., na.rm = TRUE), sum(., na.rm = TRUE))) %>% 
   ungroup() %>%
   gather(var, val, -WAFER_ID, -STAGE, -CHAMBER) %>%
   unite(CHAMBER_VAR, var, CHAMBER) %>%
@@ -183,9 +183,15 @@ glimpse(agrgts_2)
 # all features ------------------------------------------------------------
 
 features <- response %>%
+  mutate(
+    AVG_REMOVAL_RATE_OUTLIER_FLAG = if_else(AVG_REMOVAL_RATE > 2000, 1L, 0L)
+    ) %>%
   inner_join(multiple_stage_flag, by = "WAFER_ID") %>%
   inner_join(combined_durations, by = "WAFER_ID") %>%
-  #inner_join(agrgts, by = c("WAFER_ID", "STAGE") %>% # leave out for now
+  inner_join(agrgts, by = c("WAFER_ID", "STAGE")) %>%
   inner_join(agrgts_2, by = c("WAFER_ID", "STAGE"))
 
 glimpse(features)
+
+
+
