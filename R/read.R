@@ -38,4 +38,18 @@ base_df <- map_df(files, function(file) {
   }
 ) %>% inner_join(response, by = c("WAFER_ID", "STAGE"))
 
+base_df <- base_df %>% 
+  mutate(STATION = case_when(
+    .$STAGE == "A" & .$CHAMBER == 1 ~ "A123",
+    .$STAGE == "A" & .$CHAMBER == 2 ~ "A123",
+    .$STAGE == "A" & .$CHAMBER == 3 ~ "A123",
+    .$STAGE == "A" & .$CHAMBER == 4 ~ "A456",
+    .$STAGE == "A" & .$CHAMBER == 5 ~ "A456",
+    .$STAGE == "A" & .$CHAMBER == 6 ~ "A456",
+    .$STAGE == "B" & .$CHAMBER == 4 ~ "B456",
+    .$STAGE == "B" & .$CHAMBER == 5 ~ "B456",
+    .$STAGE == "B" & .$CHAMBER == 6 ~ "B456",
+    TRUE ~ "OTHER"
+  ))
+
 rm(list = ls()[!(ls() %in% c('response', 'base_df'))])

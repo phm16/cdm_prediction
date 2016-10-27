@@ -1,5 +1,13 @@
 
 
+
+# station -----------------------------------------------------------------
+
+station <- base_df %>%
+  distinct(WAFER_ID, STAGE, STATION)
+
+glimpse(station)
+
 # wafers in multiple stages -----------------------------------------------
 
 # if wafer count is greater than 1, then the wafer is processed in multiple chambers
@@ -14,16 +22,20 @@ glimpse(multiple_stage_flag)
 # component replacement flags ---------------------------------------------
 
 # flag when there is a large drop in usage (signaling a replacement)
-replace_flags <- base_df %>% select(WAFER_ID, STAGE, TIMESTAMP, starts_with("USAGE")) %>%
-  gather(VAR, VAL, -WAFER_ID, -STAGE, -TIMESTAMP) %>%
-  group_by(VAR) %>%
+replace_flags <- base_df %>% select(WAFER_ID, STAGE, STATION, TIMESTAMP, starts_with("USAGE")) %>%
+  gather(VAR, VAL, -WAFER_ID, -STAGE, -STATION, -TIMESTAMP) %>%
+  group_by(VAR, STATION) %>%
   mutate(
     LAG_VAL = lag(VAL, 1, default = 0L)
   ) %>%
   ungroup() %>%
   mutate(
     VAR = paste0(str_replace(VAR, "USAGE_OF_", ""), "_REPLACED_FLAG")
-  ) %>%
+  )
+
+a123 <- replace_flags %>% 
+  filter(STATION == "A123") %>%
+  arrange(TIMESTAMP) %>%
   mutate(
     REPLACE_FLAG = case_when(
       .$VAR == "BACKING_FILM_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 1000)) ~ 1L,
@@ -33,8 +45,39 @@ replace_flags <- base_df %>% select(WAFER_ID, STAGE, TIMESTAMP, starts_with("USA
       .$VAR == "POLISHING_TABLE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 50)) ~ 1L,
       .$VAR == "PRESSURIZED_SHEET_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 500)) ~ 1L,
       TRUE ~ 0L
-    )) %>%
-  ungroup()
+    ))
+
+a456 <- replace_flags %>% 
+  filter(STATION == "A456") %>%
+  arrange(TIMESTAMP) %>%
+  mutate(
+    REPLACE_FLAG = case_when(
+      .$VAR == "BACKING_FILM_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 1000)) ~ 1L,
+      .$VAR == "DRESSER_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 100)) ~ 1L,
+      .$VAR == "DRESSER_TABLE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 1000)) ~ 1L,
+      .$VAR == "MEMBRANE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 20)) ~ 1L,
+      .$VAR == "POLISHING_TABLE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 50)) ~ 1L,
+      .$VAR == "PRESSURIZED_SHEET_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 500)) ~ 1L,
+      TRUE ~ 0L
+    ))
+
+b456 <- replace_flags %>% 
+  filter(STATION == "B456") %>%
+  arrange(TIMESTAMP) %>%
+  mutate(
+    REPLACE_FLAG = case_when(
+      .$VAR == "BACKING_FILM_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 1000)) ~ 1L,
+      .$VAR == "DRESSER_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 100)) ~ 1L,
+      .$VAR == "DRESSER_TABLE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 1000)) ~ 1L,
+      .$VAR == "MEMBRANE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 20)) ~ 1L,
+      .$VAR == "POLISHING_TABLE_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 50)) ~ 1L,
+      .$VAR == "PRESSURIZED_SHEET_REPLACED_FLAG" & (.$LAG_VAL > (.$VAL + 500)) ~ 1L,
+      TRUE ~ 0L
+    ))
+
+replace_flags <- a123 %>% bind_rows(a456) %>% bind_rows(b456)
+
+rm(list = c("a123", "a456", "b456"))
 
 # spread the replacement flags to columns
 replace_flags_spread <- replace_flags %>%
@@ -47,7 +90,8 @@ replace_flags_spread <- replace_flags %>%
     REPLACE_FLAG
   ) %>%
   distinct() %>%
-  spread(VAR, REPLACE_FLAG, fill = 0L)
+  spread(VAR, REPLACE_FLAG, fill = 0L) %>%
+  distinct()
 
 glimpse(replace_flags_spread)
 
@@ -137,8 +181,14 @@ glimpse(combined_durations)
 # simple aggregates -------------------------------------------------------
 
 # group by STAGE and CHAMBER
-agrgts <- base_df %>%
-  select(-MACHINE_ID,-MACHINE_DATA,-AVG_REMOVAL_RATE) %>%
+agrgts <- base_df %>% 
+  #filter(WAFER_ID == 2062207654) %>% 
+  group_by(WAFER_ID, TIMESTAMP, STAGE, STATION, CHAMBER) %>%
+  summarize_each(funs(mean(., na.rm = TRUE))) %>% # account for timestamps with multiple values
+  #select(TIMESTAMP, CHAMBER, WAFER_ID, STAGE, STATION, USAGE_OF_BACKING_FILM) %>%
+  ungroup() %>%
+  select(-MACHINE_ID, -MACHINE_DATA, -AVG_REMOVAL_RATE) %>%
+  distinct() %>%
   left_join(replace_flags_spread, by = c("WAFER_ID", "STAGE", "TIMESTAMP")) %>%
   replace_na(
     list(
@@ -149,18 +199,27 @@ agrgts <- base_df %>%
       "PRESSURIZED_SHEET_REPLACED_FLAG" = 0L
     )
   ) %>%
-  group_by(WAFER_ID, STAGE, CHAMBER) %>% 
+  distinct() %>%
+  group_by(WAFER_ID, STAGE, STATION, CHAMBER) %>% 
   summarize_each(funs(min(., na.rm = TRUE), mean(., na.rm = TRUE), max(., na.rm = TRUE), sum(., na.rm = TRUE))) %>% 
   ungroup() %>%
-  gather(var, val, -WAFER_ID, -STAGE, -CHAMBER) %>%
+  gather(var, val, -WAFER_ID, -STAGE, -STATION, -CHAMBER) %>%
   unite(CHAMBER_VAR, var, CHAMBER) %>%
-  spread(CHAMBER_VAR, val, fill = 0)
+  spread(CHAMBER_VAR, val, fill = 0) %>%
+  select(-STATION)
 
 glimpse(agrgts)
 
 # group by STAGE
 agrgts_2 <- base_df %>% 
-  select(-MACHINE_ID, -MACHINE_DATA, -AVG_REMOVAL_RATE) %>%
+  #filter(WAFER_ID == 2062207654) %>% 
+  group_by(WAFER_ID, TIMESTAMP, STAGE, STATION, CHAMBER) %>%
+  summarize_each(funs(mean(., na.rm = TRUE))) %>% # account for timestamps with multiple values
+  #select(TIMESTAMP, CHAMBER, WAFER_ID, STAGE, STATION, USAGE_OF_BACKING_FILM) %>%
+  ungroup() %>%
+  #select(TIMESTAMP, WAFER_ID, STAGE, STATION, USAGE_OF_BACKING_FILM) %>%
+  select(-MACHINE_ID, -MACHINE_DATA, -STATION, -CHAMBER, -AVG_REMOVAL_RATE) %>%
+  distinct() %>%
   left_join(replace_flags_spread, by = c("WAFER_ID", "STAGE", "TIMESTAMP")) %>%
   replace_na(
     list(
@@ -186,12 +245,11 @@ features <- response %>%
   mutate(
     AVG_REMOVAL_RATE_OUTLIER_FLAG = if_else(AVG_REMOVAL_RATE > 2000, 1L, 0L)
     ) %>%
+  inner_join(station, by = c("WAFER_ID", "STAGE")) %>%
   inner_join(multiple_stage_flag, by = "WAFER_ID") %>%
   inner_join(combined_durations, by = "WAFER_ID") %>%
   inner_join(agrgts, by = c("WAFER_ID", "STAGE")) %>%
   inner_join(agrgts_2, by = c("WAFER_ID", "STAGE"))
 
 glimpse(features)
-
-
 
