@@ -2,9 +2,12 @@ library(wavelets)
 
 # expore the use of wavelets for feature extraction
 
-wvlt <- train_df %>% filter(WAFER_ID == 2939014292, STAGE == "A") %>%
+ggplot(base_df %>% filter(WAFER_ID == 2939014292, STAGE == "A"),
+       aes(x = TIMESTAMP, y = CENTER_AIR_BAG_PRESSURE)) + geom_line()
+
+wvlt <- base_df %>% filter(WAFER_ID == 2939014292, STAGE == "A") %>%
   #.$WAFER_ROTATION %>%
-  .$STAGE_ROTATION %>%
+  .$CENTER_AIR_BAG_PRESSURE %>%
   dwt(., filter = "haar", n.levels = 1)
 
 plot(wvlt)
@@ -17,11 +20,13 @@ str(wvlt)
 
 wvlt_df <- data.frame(
   X = seq_along(wvlt@W$W1),
-  W1 = wvlt@W$W1,
-  V1 = wvlt@V$V1
+  Wavelet = wvlt@W$W1,
+  Scaling = wvlt@V$V1
 )
 
-ggplot(wvlt_df %>% gather(var, val, -X), aes(x = X, y = val, color = var)) + geom_line()
+ggplot(wvlt_df %>% gather(var, val, -X), aes(x = X, y = val, color = var)) + 
+  geom_line() +
+  labs(x = "TIMESTAMP", color = "Coefficient")
 
 wvlt_agrgt <- wvlt_df %>% 
   mutate(V1_DIFF = V1 - lag(V1, 1, default = 0),
