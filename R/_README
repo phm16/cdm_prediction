@@ -3,7 +3,14 @@ These scripts are required to generate the training and test sets:
 _setup.R:  loads packages
 read.R:  reads training data csv files
 features.R:  generates features for modeling
+model_df.R:  select features to be used in modeling
 data_split.R:  splits 70% of the oldest wafer/stage to training; 30% of the newest wafer/stage to test
+
+These scripts are used for exploring the data at various stages of the modeling process:
+
+explore.R:  primarily used for exploring data in the original format
+explore_features.R:  explore post-feature generation
+explore_model.R:  explore post-data split
 
 The data folder should be structured like this:
 
