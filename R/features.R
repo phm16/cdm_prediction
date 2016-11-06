@@ -1,10 +1,9 @@
 
 
-
 # station -----------------------------------------------------------------
 
 station <- base_df %>%
-  distinct(WAFER_ID, STAGE, STATION)
+  distinct(WAFER_ID, STAGE, POLISH_TYPE, STATION)
 
 glimpse(station)
 
@@ -180,14 +179,14 @@ glimpse(combined_durations)
 
 # simple aggregates -------------------------------------------------------
 
-# group by STAGE and CHAMBER
-agrgts <- base_df %>% 
+# group by stage and chamber
+agrgts_stage_chamber <- base_df %>% 
   #filter(WAFER_ID == 2062207654) %>% 
-  group_by(WAFER_ID, TIMESTAMP, STAGE, STATION, CHAMBER) %>%
+  group_by(WAFER_ID, TIMESTAMP, STAGE, POLISH_TYPE, STATION, POLISH_PHASE, CHAMBER) %>%
   summarize_each(funs(mean(., na.rm = TRUE))) %>% # account for timestamps with multiple values
   #select(TIMESTAMP, CHAMBER, WAFER_ID, STAGE, STATION, USAGE_OF_BACKING_FILM) %>%
   ungroup() %>%
-  select(-MACHINE_ID, -MACHINE_DATA, -AVG_REMOVAL_RATE) %>%
+  select(-MACHINE_ID, -MACHINE_DATA, -AVG_REMOVAL_RATE, -POLISH_TYPE, -POLISH_PHASE) %>%
   distinct() %>%
   left_join(replace_flags_spread, by = c("WAFER_ID", "STAGE", "TIMESTAMP")) %>%
   replace_na(
@@ -208,17 +207,17 @@ agrgts <- base_df %>%
   spread(CHAMBER_VAR, val, fill = 0) %>%
   select(-STATION)
 
-glimpse(agrgts)
+glimpse(agrgts_stage_chamber)
 
 # group by STAGE
-agrgts_2 <- base_df %>% 
+agrgts_stage <- base_df %>% 
   #filter(WAFER_ID == 2062207654) %>% 
-  group_by(WAFER_ID, TIMESTAMP, STAGE, STATION, CHAMBER) %>%
+  group_by(WAFER_ID, TIMESTAMP, STAGE, POLISH_TYPE, STATION, POLISH_PHASE, CHAMBER) %>%
   summarize_each(funs(mean(., na.rm = TRUE))) %>% # account for timestamps with multiple values
   #select(TIMESTAMP, CHAMBER, WAFER_ID, STAGE, STATION, USAGE_OF_BACKING_FILM) %>%
   ungroup() %>%
   #select(TIMESTAMP, WAFER_ID, STAGE, STATION, USAGE_OF_BACKING_FILM) %>%
-  select(-MACHINE_ID, -MACHINE_DATA, -STATION, -CHAMBER, -AVG_REMOVAL_RATE) %>%
+  select(-MACHINE_ID, -MACHINE_DATA, -STATION, -POLISH_TYPE, -POLISH_PHASE, -CHAMBER, -AVG_REMOVAL_RATE) %>%
   distinct() %>%
   left_join(replace_flags_spread, by = c("WAFER_ID", "STAGE", "TIMESTAMP")) %>%
   replace_na(
@@ -237,19 +236,176 @@ agrgts_2 <- base_df %>%
   spread(var, val, fill = 0) %>%
   mutate(STAGE_DURATION = TIMESTAMP_max - TIMESTAMP_min)
 
-glimpse(agrgts_2)
+glimpse(agrgts_stage)
+
+# group by polishing phase
+agrgts_polishing_phase <- base_df %>% 
+  filter(POLISH_PHASE == "P123") %>%
+  #filter(WAFER_ID == 2062207654) %>% 
+  group_by(WAFER_ID, TIMESTAMP, STAGE, POLISH_TYPE, STATION, POLISH_PHASE, CHAMBER) %>%
+  summarize_each(funs(mean(., na.rm = TRUE))) %>% # account for timestamps with multiple values
+  #select(TIMESTAMP, CHAMBER, WAFER_ID, STAGE, STATION, USAGE_OF_BACKING_FILM) %>%
+  ungroup() %>%
+  select(-MACHINE_ID, -MACHINE_DATA, -AVG_REMOVAL_RATE, -STATION, -POLISH_TYPE, -CHAMBER) %>%
+  distinct() %>%
+  left_join(replace_flags_spread, by = c("WAFER_ID", "STAGE", "TIMESTAMP")) %>%
+  replace_na(
+    list(
+      "BACKING_FILM_REPLACED_FLAG" = 0L,
+      "DRESSER_REPLACED_FLAG" = 0L,
+      "MEMBRANE_REPLACED_FLAG" = 0L,
+      "POLISHING_TABLE_REPLACED_FLAG" = 0L,
+      "PRESSURIZED_SHEET_REPLACED_FLAG" = 0L
+    )
+  ) %>%
+  distinct() %>%
+  group_by(WAFER_ID, STAGE, POLISH_PHASE) %>% 
+  summarize_each(funs(min(., na.rm = TRUE), mean(., na.rm = TRUE), max(., na.rm = TRUE), sum(., na.rm = TRUE))) %>% 
+  ungroup() %>%
+  gather(var, val, -WAFER_ID, -STAGE, -POLISH_PHASE) %>%
+  unite(POLISH_PHASE_VAR, var, POLISH_PHASE) %>%
+  spread(POLISH_PHASE_VAR, val, fill = 0)
+
+glimpse(agrgts_polishing_phase)
 
 # all features ------------------------------------------------------------
 
-features <- response %>%
-  mutate(
-    AVG_REMOVAL_RATE_OUTLIER_FLAG = if_else(AVG_REMOVAL_RATE > 2000, 1L, 0L)
-    ) %>%
+features1 <- response %>%
+  #mutate(AVG_REMOVAL_RATE_OUTLIER_FLAG = if_else(AVG_REMOVAL_RATE > 2000, 1L, 0L)) %>%
   inner_join(station, by = c("WAFER_ID", "STAGE")) %>%
   inner_join(multiple_stage_flag, by = "WAFER_ID") %>%
   inner_join(combined_durations, by = "WAFER_ID") %>%
-  inner_join(agrgts, by = c("WAFER_ID", "STAGE")) %>%
-  inner_join(agrgts_2, by = c("WAFER_ID", "STAGE"))
+  inner_join(agrgts_stage, by = c("WAFER_ID", "STAGE")) %>%
+  inner_join(agrgts_polishing_phase, by = c("WAFER_ID", "STAGE"))
+  #inner_join(agrgts_stage_chamber, by = c("WAFER_ID", "STAGE"))
 
+glimpse(features1)
+
+# start-to-start lag ------------------------------------------------------
+
+start_to_start_lag <- features1 %>%
+  select(WAFER_ID, STAGE, STATION, TIMESTAMP_min, AVG_REMOVAL_RATE) %>%
+  group_by(STATION) %>%
+  arrange(TIMESTAMP_min) %>%
+  mutate(
+    TIMESTAMP_min_lag = lag(TIMESTAMP_min, 1, default = NA),
+    START_TO_START_LAG = TIMESTAMP_min - TIMESTAMP_min_lag
+    ) %>%
+  ungroup() %>%
+  arrange(STATION, TIMESTAMP_min) %>%
+  replace_na(list(START_TO_START_LAG = 0))
+
+# ggplot(start_to_start_lag, aes(x = START_TO_START_LAG)) + geom_histogram()
+
+glimpse(start_to_start_lag)
+
+# continuous polishing processes ------------------------------------------
+
+cpp <-
+  # overall cpp ---------
+  start_to_start_lag %>%
+    arrange(TIMESTAMP_min) %>%
+    group_by(STATION) %>%
+    mutate(FIRST_CPP_FLAG = row_number()) %>%
+    mutate(FIRST_CPP_FLAG = if_else(FIRST_CPP_FLAG == 1L, 1L, 0L)) %>%
+    ungroup() %>%
+    #group_by(STATION) %>%
+    mutate(
+      CPP_INC = if_else(START_TO_START_LAG > 500 |
+                          FIRST_CPP_FLAG == 1, 1L, 0L),
+      OVERALL_CPP = cumsum(CPP_INC)
+    ) %>%
+    # job within cpp ---------
+    group_by(OVERALL_CPP) %>%
+    arrange(TIMESTAMP_min) %>%
+    mutate(
+      JOB_WITHIN_CPP = row_number(),
+      AVG_REMOVAL_RATE_lag1 = lag(AVG_REMOVAL_RATE, 1L, default = 0L),
+      AVG_REMOVAL_RATE_lag2 = lag(AVG_REMOVAL_RATE, 2L, default = 0L),
+      AVG_REMOVAL_RATE_lag3 = lag(AVG_REMOVAL_RATE, 3L, default = 0L),
+      AVG_REMOVAL_RATE_lag4 = lag(AVG_REMOVAL_RATE, 4L, default = 0L),
+      AVG_REMOVAL_RATE_lag5 = lag(AVG_REMOVAL_RATE, 5L, default = 0L)
+      ) %>%
+    ungroup() %>%
+    select(-TIMESTAMP_min, -TIMESTAMP_min_lag, -AVG_REMOVAL_RATE, -STATION)
+
+glimpse(cpp)
+
+# total usage -------------------------------------------------------------
+
+total_usage <- features1 %>%
+  select(WAFER_ID, STAGE, starts_with("USAGE")) %>%
+  mutate(
+    USAGE_OF_BACKING_FILM_total = USAGE_OF_MEMBRANE_max - USAGE_OF_MEMBRANE_min,
+    USAGE_OF_DRESSER_total = USAGE_OF_DRESSER_max - USAGE_OF_DRESSER_min,
+    USAGE_OF_DRESSER_TABLE_total = USAGE_OF_DRESSER_TABLE_max - USAGE_OF_DRESSER_TABLE_min,
+    USAGE_OF_MEMBRANE_total = USAGE_OF_MEMBRANE_max - USAGE_OF_MEMBRANE_min,
+    USAGE_OF_POLISHING_TABLE_total = USAGE_OF_POLISHING_TABLE_max - USAGE_OF_POLISHING_TABLE_min,
+    USAGE_OF_PRESSURIZED_SHEET_total = USAGE_OF_PRESSURIZED_SHEET_max - USAGE_OF_PRESSURIZED_SHEET_min
+  ) %>%
+  select(WAFER_ID, STAGE, ends_with("_total"))
+
+glimpse(total_usage)
+
+# impute outliers ---------------------------------------------------------
+
+outliers_imp <- features1 %>%
+  filter(AVG_REMOVAL_RATE < 2000) %>%
+  select(WAFER_ID, STAGE, STATION, AVG_REMOVAL_RATE) %>%
+  group_by(STATION) %>%
+  summarize(AVG_REMOVAL_RATE_mean = mean(AVG_REMOVAL_RATE)) %>%
+  ungroup()
+
+# avg removal rate lags ---------------------------------------------------
+
+# these are not included in the final feature set - may be useful later for time series
+
+avg_removal_rate_lags <- features1 %>% 
+  select(WAFER_ID, STAGE, STATION, TIMESTAMP_min, AVG_REMOVAL_RATE) %>%
+  group_by(STATION) %>%
+  arrange(TIMESTAMP_min) %>%
+  mutate(
+    AVG_REMOVAL_RATE_lag1  = lag(AVG_REMOVAL_RATE, 1,  default = 0L),
+    AVG_REMOVAL_RATE_lag2  = lag(AVG_REMOVAL_RATE, 2,  default = 0L),
+    AVG_REMOVAL_RATE_lag3  = lag(AVG_REMOVAL_RATE, 3,  default = 0L),
+    AVG_REMOVAL_RATE_lag4  = lag(AVG_REMOVAL_RATE, 4,  default = 0L),
+    AVG_REMOVAL_RATE_lag5  = lag(AVG_REMOVAL_RATE, 5,  default = 0L),
+    AVG_REMOVAL_RATE_lag6  = lag(AVG_REMOVAL_RATE, 6,  default = 0L),
+    AVG_REMOVAL_RATE_lag7  = lag(AVG_REMOVAL_RATE, 7,  default = 0L),
+    AVG_REMOVAL_RATE_lag8  = lag(AVG_REMOVAL_RATE, 8,  default = 0L),
+    AVG_REMOVAL_RATE_lag9  = lag(AVG_REMOVAL_RATE, 9,  default = 0L),
+    AVG_REMOVAL_RATE_lag10 = lag(AVG_REMOVAL_RATE, 10, default = 0L)
+  ) %>%
+  ungroup() %>%
+  select(-STATION, -TIMESTAMP_min, -AVG_REMOVAL_RATE)
+
+# polish flags ------------------------------------------------------------
+
+polish_flags <- features1 %>%
+  select(WAFER_ID, STAGE, STATION, MULTIPLE_STAGE_FLAG, STAGE_DURATION) %>%
+  mutate(REPOLISH_FLAG = if_else(STATION == "B456" & MULTIPLE_STAGE_FLAG == 1L, 1L, 0L),
+         REQUIRED_REPOLISH_FLAG = if_else(STATION == "A456" & MULTIPLE_STAGE_FLAG == 1L, 1L, 0L),
+         LONG_POLISH_FLAG = if_else(STAGE_DURATION >= 350L, 1L, 0L)
+  ) %>%
+  select(-STATION, -MULTIPLE_STAGE_FLAG, -STAGE_DURATION)
+
+glimpse(polish_flags)
+
+# enhanced features -------------------------------------------------------
+
+features <- features1 %>%
+  #inner_join (avg_removal_rate_lags, by = c("WAFER_ID", "STAGE")) %>%
+  inner_join(outliers_imp, by = "STATION") %>%
+  inner_join(polish_flags, by = c("WAFER_ID", "STAGE")) %>%
+  mutate(AVG_REMOVAL_RATE = if_else(
+    AVG_REMOVAL_RATE > 2000, 
+    AVG_REMOVAL_RATE_mean, 
+    AVG_REMOVAL_RATE)
+    ) %>%
+  inner_join(cpp, by = c("WAFER_ID", "STAGE")) %>%
+  inner_join(total_usage, by = c("WAFER_ID", "STAGE")) %>%
+  select(-AVG_REMOVAL_RATE_mean)
+  
 glimpse(features)
+
 
