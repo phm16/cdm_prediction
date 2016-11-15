@@ -7,7 +7,8 @@ base_df %>% select(WAFER_ID, STAGE, STATION, TIMESTAMP, starts_with("USAGE")) %>
   gather(var, val, -WAFER_ID, -STAGE, -STATION, -TIMESTAMP) %>%
   ggplot(., aes(x = TIMESTAMP, y = val, color = STATION)) + geom_line() +
   facet_wrap(~ var, scales = "free_y", nrow = 6) +
-  theme(legend.position = "top")
+  theme(legend.position = "top") +
+  ggsave("figures/usage_by_station.png", device = "png", width = 6, height = 8)
 
 # plot usage individually
 base_df %>% 
@@ -18,7 +19,8 @@ base_df %>%
   filter(LAG_FLAG == 0L) %>%
   ggplot(., aes(x = TIMESTAMP, y = USAGE_OF_BACKING_FILM, color = STATION)) +
   geom_line() +
-  facet_wrap(~ STATION, nrow = 3)
+  facet_wrap(~ STATION, nrow = 3) +
+  ggsave("figures/usage_of_backing_film.png", device = "png", width = 6, height = 4)
 
   ggplotly()
   
