@@ -1,8 +1,10 @@
-# library(tidyverse)
 
-response <- read_csv("data/CMP-training-removalrate.csv")
 
-files <- list.files("data/training")
+read_files <- function(response_path, files_path) {
+
+response <- read_csv(response_path)
+
+files <- list.files(files_path)
 
 col_types_list <- 
   list(
@@ -33,10 +35,11 @@ col_types_list <-
     EDGE_AIR_BAG_PRESSURE = col_double()
   )
 
-base_df <- map_df(files, function(file) {
-  read_csv(paste0("data/training/", file), col_types = col_types_list)
+df <- map_df(files, function(file) {
+  read_csv(paste0(files_path, file), col_types = col_types_list)
   }
-) %>% inner_join(response, by = c("WAFER_ID", "STAGE"))
+) %>% 
+  inner_join(response, by = c("WAFER_ID", "STAGE")) %>%
 
 # 4 polishing phases:
 # 1) prep phase
@@ -44,7 +47,6 @@ base_df <- map_df(files, function(file) {
 # 3) ending
 # 4) cleaning
 
-base_df <- base_df %>% 
   mutate(POLISH_TYPE = if_else(CHAMBER %in% c(1, 2, 3), "ROUGH", "FINE")) %>%
   mutate(POLISH_PHASE = if_else(CHAMBER %in% c(1, 4), "P123", "P4")) %>%
   mutate(STATION = case_when(
@@ -60,6 +62,8 @@ base_df <- base_df %>%
     TRUE ~ "OTHER"
   ))
 
-base_df <- base_df 
+}
 
-rm(list = ls()[!(ls() %in% c('response', 'base_df'))])
+train_df_ts <- read_files("data/CMP-training-removalrate.csv", "data/training/")
+validation_df_ts <- read_files("data/orig_CMP-validation-removalrate.csv", "data/validation/")
+test_df_ts <- read_files("data/orig_CMP-test-removalrate.csv", "data/test/")
