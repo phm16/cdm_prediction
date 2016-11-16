@@ -3,16 +3,16 @@
 
 # long data frame ---------------------------------------------------------
 
-features_long <- features %>% gather(var, val, -WAFER_ID, -STAGE, -STATION, -SEQUENCE)
+train_df_long <- train_df %>% gather(var, val, -WAFER_ID, -STAGE, -STATION, -SEQUENCE)
 
-ggplot(features, aes(x = USAGE_OF_BACKING_FILM_max)) + geom_histogram()
+ggplot(train_df, aes(x = USAGE_OF_BACKING_FILM_max)) + geom_histogram()
 
-features %>% count(USAGE_OF_BACKING_FILM_max)
+train_df %>% count(USAGE_OF_BACKING_FILM_max)
 
-ggplot(features %>% mutate(RN = row_number()), 
+ggplot(train_df %>% mutate(RN = row_number()), 
        aes(x = RN, y = USAGE_OF_BACKING_FILM_max)) + geom_line()
 
-features %>% count(USAGE_OF_BACKING_FILM_max)
+train_df %>% count(USAGE_OF_BACKING_FILM_max)
 
 
 # variables ---------------------------------------------------------------
@@ -142,12 +142,12 @@ STAGE_DURATION
 # response ----------------------------------------------------------------
 
 # box plots -----
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = STATION, y = AVG_REMOVAL_RATE)) + 
   geom_boxplot()
 
 # boxplot with outliers
-ggplot(features, 
+ggplot(train_df, 
        aes(x = STATION, y = AVG_REMOVAL_RATE)) + 
   geom_boxplot()
 
@@ -155,61 +155,64 @@ ggplot(features,
 
 # durations
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = as.factor(MULTIPLE_STAGE_FLAG), y = AVG_REMOVAL_RATE)) + 
   geom_boxplot() +
   facet_wrap(~ STATION)
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = TOTAL_PROCESSING_DURATION, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION)
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = TOTAL_POLISHING_DURATION, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION)
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = PRCT_TIME_POLISHING, y = AVG_REMOVAL_RATE)) + 
   geom_jitter() +
   facet_wrap(~ STATION)
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = STAGE_DURATION, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION)
 
-
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
+       aes(x = USAGE_OF_DRESSER_max, y = AVG_REMOVAL_RATE)) + 
+  geom_point() +
+  facet_wrap(~ STATION)
 
 # usage ----------
 
 # scatterplots
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = USAGE_OF_BACKING_FILM_max, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = USAGE_OF_DRESSER_max, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = USAGE_OF_MEMBRANE_max, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = USAGE_OF_POLISHING_TABLE_max, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = USAGE_OF_PRESSURIZED_SHEET_max, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
@@ -218,154 +221,155 @@ ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000),
 # measurements ---------
 
 # outliers of processing duration
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = TOTAL_PROCESSING_DURATION, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = A_1, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
 # outliers of polishing duration
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = TOTAL_POLISHING_DURATION, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = CENTER_AIR_BAG_PRESSURE_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
-       aes(x = CENTER_AIR_BAG_PRESSURE_max, y = AVG_REMOVAL_RATE)) + 
+ggplot(train_df,
+         #mutate(cluster = kmeans(CENTER_AIR_BAG_PRESSURE_max_P123, 6)$cluster), 
+       aes(x = CENTER_AIR_BAG_PRESSURE_max_P123, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
-  facet_wrap(~ STATION) +
+  facet_wrap(~ STATION, scales = "free_x") +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = EDGE_AIR_BAG_PRESSURE_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
 # outliers of head rotation (less than 90)
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = HEAD_ROTATION_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = MAIN_OUTER_AIR_BAG_PRESSURE_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = PRESSURIZED_CHAMBER_PRESSURE_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = RETAINER_RING_PRESSURE_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = RIPPLE_AIR_BAG_PRESSURE_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = SLURRY_FLOW_LINE_A_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = SLURRY_FLOW_LINE_B_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = SLURRY_FLOW_LINE_C_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = STAGE_ROTATION_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = WAFER_ROTATION_mean, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = , y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = , y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = , y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = , y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
 # positive correlation
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = TIMESTAMP_max, y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth()
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = , y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = , y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = , y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
   geom_smooth(method = "lm")
 
-ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000), 
+ggplot(train_df %>% filter(AVG_REMOVAL_RATE < 1000), 
        aes(x = , y = AVG_REMOVAL_RATE)) + 
   geom_point() +
   facet_wrap(~ STATION) +
@@ -374,8 +378,51 @@ ggplot(features %>% filter(AVG_REMOVAL_RATE < 1000),
 
 # facets ------------------------------------------------------------------
 
-ggplot(features_long,
+ggplot(train_df_long,
        aes(x = val)) +
   geom_histogram() +
   facet_wrap( ~ var, scales = "free") +
-  theme_grey(8)
+  theme_grey(8) +
+  ggsave("figures/usage_by_station.png", device = "png", width = 6, height = 8)
+
+
+# missing data ------------------------------------------------------------
+
+ggplot(train_df, aes(x = CENTER_AIR_BAG_PRESSURE_max_P123)) +
+  geom_histogram() +
+  facet_wrap(~ STATION)
+
+ggplot(train_df, aes(x = RIPPLE_AIR_BAG_PRESSURE_max_P123)) +
+  geom_histogram() +
+  facet_wrap(~ STATION)
+
+ggplot(train_df, aes(x = SLURRY_FLOW_LINE_A_max_P123)) +
+  geom_histogram() +
+  facet_wrap(~ STATION)
+
+ggplot(train_df, aes(x = USAGE_OF_DRESSER_max)) +
+  geom_histogram() +
+  facet_wrap(~ STATION)
+
+# dresser wear ------------------------------------------------------------
+
+train_df %>% count(JOB_WITHIN_CPP)
+ggplot(train_df, aes(x = as.factor(JOB_WITHIN_CPP))) + geom_bar()
+train_df %>% count(JOB_WITHIN_CPP, OVERALL_CPP) %>% filter(JOB_WITHIN_CPP == 10)
+train_df %>% count(JOB_WITHIN_CPP, OVERALL_CPP) %>% filter(JOB_WITHIN_CPP == 9)
+train_df %>% count(JOB_WITHIN_CPP, OVERALL_CPP) %>% filter(JOB_WITHIN_CPP == 8)
+train_df %>% count(JOB_WITHIN_CPP, OVERALL_CPP) %>% filter(JOB_WITHIN_CPP == 7)
+train_df %>% count(JOB_WITHIN_CPP, OVERALL_CPP) %>% filter(JOB_WITHIN_CPP == 6)
+
+long_cpp <- train_df %>% 
+  count(JOB_WITHIN_CPP, OVERALL_CPP) %>% 
+  filter(JOB_WITHIN_CPP == 6) %>%
+  .$OVERALL_CPP
+
+train_df %>% filter(JOB_WITHIN_CPP == 10) %>% distinct(WAFER_ID, STAGE)
+
+ggplot(train_df %>%
+         filter(OVERALL_CPP %in% long_cpp), 
+       aes(x = TIMESTAMP_min, y = AVG_REMOVAL_RATE)) + 
+  geom_line() +
+  facet_wrap(~ OVERALL_CPP, scales = "free")
