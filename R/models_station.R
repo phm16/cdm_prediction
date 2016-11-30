@@ -12,7 +12,6 @@ validation_responses <- map(stations, function(station) {
   
 }) %>% flatten_dbl(.)
 
-
 # linear regression -------------------------------------------------------
 
 glm_mdl_stations <- map(stations, function(station) {

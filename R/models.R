@@ -13,6 +13,12 @@ glm_null <- train(
 
 glm_null
 
+# predictions
+glm_null_pred <- predict(glm_null, validation_df)
+
+# validation set performance
+postResample(glm_null_pred, validation_df$AVG_REMOVAL_RATE)
+
 # glm by station ----------------------------------------------------------
 
 set.seed(59)

@@ -67,3 +67,7 @@ df <- map_df(files, function(file) {
 train_df_ts <- read_files("data/CMP-training-removalrate.csv", "data/training/")
 validation_df_ts <- read_files("data/orig_CMP-validation-removalrate.csv", "data/validation/")
 test_df_ts <- read_files("data/orig_CMP-test-removalrate.csv", "data/test/")
+
+# write_rds(train_df_ts, "data/train_df_ts.rds")
+# write_rds(validation_df_ts, "data/validation_df_ts.rds")
+# write_rds(test_df_ts, "data/test_df_ts.rds")

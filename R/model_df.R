@@ -12,6 +12,10 @@ test_df <- features_function(test_df_ts)
 # write_csv(validation_df, "data/validation_df.csv")
 # write_csv(test_df, "data/test_df.csv")
 
+# write_rds(train_df, "data/train_df.rds")
+# write_rds(validation_df, "data/validation_df.rds")
+# write_rds(test_df, "data/test_df.rds")
+
 # remove or add features --------------------------------------------------
 
 mdl_df <- train_df %>%
